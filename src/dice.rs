@@ -1,4 +1,5 @@
 use rand::*;
+use std::fmt::{self, Display};
 
 #[derive(Clone, Debug)]
 pub enum DiceValue {
@@ -15,12 +16,33 @@ impl DiceValue {
     }
 }
 
+impl Display for DiceValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::S(s) => write!(f, "{}", s)?,
+            Self::N(n) => write!(f, "{}", n)?,
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DiceResult(pub Vec<DiceValue>);
 
 impl From<i32> for DiceResult {
     fn from(n: i32) -> DiceResult {
         DiceResult(vec![DiceValue::N(n)])
+    }
+}
+
+impl Display for DiceResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut comma = "";
+        for v in &self.0 {
+            write!(f, "{}{}", comma, v)?;
+            comma = ", ";
+        }
+        Ok(())
     }
 }
 
