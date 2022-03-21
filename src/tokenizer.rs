@@ -8,12 +8,15 @@ pub enum TokenType<'a> {
     D,
     Number(i32),
     Word(&'a str),
-    OpenB,
-    CloseB,
+    ParenO,
+    ParenC,
+    BraceO,
+    BraceC,
     Sub,
     Add,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Token<'a> {
     s: &'a str,
     tt: TokenType<'a>,
@@ -58,7 +61,10 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn make_token_wrap(&mut self, tt: TokenType<'a>) -> TokenRes<'a> {
+    pub fn make_token_wrap(&mut self, tt: TokenType<'a>, unpeek: bool) -> TokenRes<'a> {
+        if unpeek {
+            self.peek = None
+        }
         Some(Ok(self.make_token(tt)))
     }
 
@@ -95,13 +101,26 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    pub fn unqoth(&mut self) -> TokenRes<'a> {
+        let start = self.peek_index();
+        loop {
+            match self.peek_char() {
+                Some((_, c)) if c.is_alphabetic() => self.peek = None,
+                Some((i, _)) => {
+                    return self.make_token_wrap(TokenType::Word(&self.s[start..i]), false)
+                }
+                None => return self.make_token_wrap(TokenType::Word(&self.s[start..]), false),
+            }
+        }
+    }
+
     pub fn qoth(&mut self) -> Option<anyhow::Result<Token<'a>>> {
         self.peek = None;
         let start = self.peek_index();
         loop {
             match self.next_char() {
                 Some((end, '\"')) => {
-                    return self.make_token_wrap(TokenType::Word(&self.s[start..end]));
+                    return self.make_token_wrap(TokenType::Word(&self.s[start..end]), false);
                 }
                 Some(_) => {}
                 None => return Some(e_str("EOI inside quotes")),
@@ -121,12 +140,13 @@ impl<'a> Iterator for Tokenizer<'a> {
                 self.number()
             }
             Some((_, '\"')) => self.qoth(),
-            Some((_, '(')) => return self.make_token_wrap(TokenType::OpenB),
-            Some((_, ')')) => return self.make_token_wrap(TokenType::CloseB),
-            Some((_, '+')) => {
-                self.peek = None;
-                return self.make_token_wrap(TokenType::Add);
-            }
+            Some((_, '(')) => return self.make_token_wrap(TokenType::ParenO, true),
+            Some((_, ')')) => return self.make_token_wrap(TokenType::ParenC, true),
+            Some((_, '[')) => return self.make_token_wrap(TokenType::BraceO, true),
+            Some((_, ']')) => return self.make_token_wrap(TokenType::BraceC, true),
+            Some((_, '+')) => return self.make_token_wrap(TokenType::Add, true),
+            Some((_, c)) if c.is_alphabetic() => self.unqoth(),
+
             Some(_) => unimplemented!(),
         }
     }
@@ -138,7 +158,7 @@ mod token_test {
 
     #[test]
     pub fn test_tokenizer() {
-        let s = r#""hello"29+"food""#;
+        let s = r#""hello"29+food3"#;
         let mut tk = Tokenizer::new(s);
         let mut t = tk.next().unwrap().unwrap();
         assert_eq!(t.start, 0);
@@ -151,5 +171,8 @@ mod token_test {
         assert_eq!(t.tt, TokenType::Add, "Gobble");
         t = tk.next().unwrap().unwrap();
         assert_eq!(t.tt, TokenType::Word("food"));
+        t = tk.next().unwrap().unwrap();
+        assert_eq!(t.tt, TokenType::Number(3));
+        assert!(tk.next().is_none());
     }
 }
