@@ -1,5 +1,6 @@
 pub mod dice;
 pub mod instruction;
+pub mod parser;
 pub mod tokenizer;
 pub mod tracker;
 use dice::*;

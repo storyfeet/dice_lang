@@ -3,20 +3,26 @@ use crate::tracker::Tracker;
 use err_tools::*;
 
 pub struct Job {
-    d: Start,
+    d: Value,
     i: Vec<Instruction>,
 }
 
 impl Job {
     pub fn dice(d: NDice) -> Self {
         Self {
-            d: Start::Roll(d),
+            d: Value::Roll(d),
             i: Vec::new(),
         }
     }
     pub fn pop() -> Self {
         Self {
-            d: Start::Pop,
+            d: Value::Pop,
+            i: Vec::new(),
+        }
+    }
+    pub fn num(n: i32) -> Self {
+        Self {
+            d: Value::Num(n),
             i: Vec::new(),
         }
     }
@@ -35,12 +41,14 @@ impl Job {
     }
 }
 
-pub enum Start {
+pub enum Value {
     Roll(NDice),
     Pop,
+    Num(i32),
+    Job(Box<Job>),
 }
 
-impl Start {
+impl Value {
     pub fn run(&self, stack: &mut Tracker) -> anyhow::Result<DiceResult> {
         match self {
             Self::Roll(d) => {
@@ -56,7 +64,7 @@ impl Start {
 pub enum Instruction {
     //Map(Box<Instruction>),
     Sum,
-    //Add(i32),
+    Add(Value),
     Append(Job),
     Push,
 }

@@ -1,9 +1,9 @@
 use err_tools::*;
 use std::str::CharIndices;
 
-pub type TokenRes<'a> = Option<anyhow::Result<Token<'a>>>;
+pub type TokenRes<'a> = anyhow::Result<Option<Token<'a>>>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenType<'a> {
     D,
     Number(i32),
@@ -14,14 +14,27 @@ pub enum TokenType<'a> {
     BraceC,
     Sub,
     Add,
+    Push,
+    Pop,
 }
 
-#[derive(Debug, PartialEq)]
+impl<'a> TokenType<'a> {
+    pub fn from_word(s: &'a str) -> Self {
+        match s {
+            "d" => TokenType::D,
+            "push" => TokenType::Push,
+            "pop" => TokenType::Pop,
+            s => TokenType::Word(s),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token<'a> {
-    s: &'a str,
-    tt: TokenType<'a>,
-    start: usize,
-    end: usize,
+    pub s: &'a str,
+    pub tt: TokenType<'a>,
+    pub start: usize,
+    pub end: usize,
 }
 
 pub struct Tokenizer<'a> {
@@ -65,7 +78,7 @@ impl<'a> Tokenizer<'a> {
         if unpeek {
             self.peek = None
         }
-        Some(Ok(self.make_token(tt)))
+        Ok(Some(self.make_token(tt)))
     }
 
     pub fn make_token(&mut self, tt: TokenType<'a>) -> Token<'a> {
@@ -80,7 +93,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn number(&mut self) -> Option<anyhow::Result<Token<'a>>> {
+    pub fn number(&mut self) -> TokenRes<'a> {
         let mut res: i32 = 0;
         let mut found = false;
         loop {
@@ -92,9 +105,9 @@ impl<'a> Tokenizer<'a> {
                 }
                 _ => {
                     if found {
-                        return Some(Ok(self.make_token(TokenType::Number(res))));
+                        return self.make_token_wrap(TokenType::Number(res), false);
                     } else {
-                        return Some(e_str("No Number Digits found in number method"));
+                        return e_str("No Number Digits found in number method");
                     }
                 }
             }
@@ -114,7 +127,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn qoth(&mut self) -> Option<anyhow::Result<Token<'a>>> {
+    pub fn qoth(&mut self) -> TokenRes<'a> {
         self.peek = None;
         let start = self.peek_index();
         loop {
@@ -123,31 +136,39 @@ impl<'a> Tokenizer<'a> {
                     return self.make_token_wrap(TokenType::Word(&self.s[start..end]), false);
                 }
                 Some(_) => {}
-                None => return Some(e_str("EOI inside quotes")),
+                None => return e_str("EOI inside quotes"),
             }
         }
     }
-}
 
-impl<'a> Iterator for Tokenizer<'a> {
-    type Item = anyhow::Result<Token<'a>>;
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn white_space(&mut self) {
+        loop {
+            match self.peek_char() {
+                Some((_, c)) if c.is_whitespace() => {
+                    self.peek = None;
+                }
+                _ => return,
+            }
+        }
+    }
+    pub fn next(&mut self) -> TokenRes<'a> {
+        self.white_space();
         self.start = self.peek_index();
         match self.peek_char() {
-            None => None,
+            None => Ok(None),
             Some((i, c)) if c >= '0' && c <= '9' => {
                 self.peek = Some((i, c));
                 self.number()
             }
             Some((_, '\"')) => self.qoth(),
-            Some((_, '(')) => return self.make_token_wrap(TokenType::ParenO, true),
-            Some((_, ')')) => return self.make_token_wrap(TokenType::ParenC, true),
-            Some((_, '[')) => return self.make_token_wrap(TokenType::BraceO, true),
-            Some((_, ']')) => return self.make_token_wrap(TokenType::BraceC, true),
-            Some((_, '+')) => return self.make_token_wrap(TokenType::Add, true),
+            Some((_, '(')) => self.make_token_wrap(TokenType::ParenO, true),
+            Some((_, ')')) => self.make_token_wrap(TokenType::ParenC, true),
+            Some((_, '[')) => self.make_token_wrap(TokenType::BraceO, true),
+            Some((_, ']')) => self.make_token_wrap(TokenType::BraceC, true),
+            Some((_, '+')) => self.make_token_wrap(TokenType::Add, true),
             Some((_, c)) if c.is_alphabetic() => self.unqoth(),
 
-            Some(_) => unimplemented!(),
+            Some(_) => e_str("Unexpected Character"),
         }
     }
 }
@@ -158,7 +179,7 @@ mod token_test {
 
     #[test]
     pub fn test_tokenizer() {
-        let s = r#""hello"29+food3"#;
+        let s = r#""hello" 29+food3"#;
         let mut tk = Tokenizer::new(s);
         let mut t = tk.next().unwrap().unwrap();
         assert_eq!(t.start, 0);
