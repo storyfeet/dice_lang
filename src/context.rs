@@ -1,36 +1,39 @@
-use crate::dice::DiceResult;
+use crate::dice::Value;
+use std::collections::BTreeMap;
 use std::fmt::{self, Display};
 
 #[derive(Debug)]
-pub struct Tracker {
-    stack: Vec<DiceResult>,
-    rolls: Vec<DiceResult>,
-    labels: Vec<(String, DiceResult)>,
+pub struct Context {
+    stack: Vec<Value>,
+    rolls: Vec<Value>,
+    labels: Vec<(String, Value)>,
+    vars: BTreeMap<String, Value>,
 }
 
-impl Tracker {
+impl Context {
     pub fn new() -> Self {
         Self {
             stack: Vec::new(),
             rolls: Vec::new(),
             labels: Vec::new(),
+            vars: BTreeMap::new(),
         }
     }
 
-    pub fn push(&mut self, dr: DiceResult) {
+    pub fn push(&mut self, dr: Value) {
         self.stack.push(dr);
     }
 
-    pub fn pop(&mut self) -> Option<DiceResult> {
+    pub fn pop(&mut self) -> Option<Value> {
         self.stack.pop()
     }
 
-    pub fn roll(&mut self, dr: DiceResult) {
+    pub fn roll(&mut self, dr: Value) {
         self.rolls.push(dr);
     }
 }
 
-impl Display for Tracker {
+impl Display for Context {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Rolls : ")?;
         let mut comma = "";

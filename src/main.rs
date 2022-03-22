@@ -1,8 +1,8 @@
+pub mod context;
 pub mod dice;
 pub mod instruction;
 pub mod parser;
 pub mod tokenizer;
-pub mod tracker;
 use dice::*;
 use instruction::*;
 
@@ -12,7 +12,7 @@ fn main() -> anyhow::Result<()> {
         .push_ins(Instruction::Push)
         .push_ins(Instruction::Append(Job::pop()));
 
-    let mut tr = tracker::Tracker::new();
+    let mut ct = context::Context::new();
     let dr = j.run(&mut tr)?;
     println!("{}\nResult = {}", tr, dr);
     Ok(())
