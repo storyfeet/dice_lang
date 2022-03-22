@@ -85,5 +85,17 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn faces(&mut self) -> anyhow::Result<Dice> {}
+    pub fn faces(&mut self) -> anyhow::Result<Dice> {
+        match self.peek_type().e_str("Dice need faces")?{
+            TokenType::Number(n) => {
+                self.peek = None;
+                Ok(Dice::D(n))
+            }
+            TokenType::BraceO => {
+                self.face_list()
+            }
+        }
+    }
+
+    pub fn v_list
 }
