@@ -1,4 +1,5 @@
 use crate::dice::Value;
+use rand::rngs::ThreadRng;
 use std::collections::BTreeMap;
 use std::fmt::{self, Display};
 
@@ -8,6 +9,7 @@ pub struct Context {
     rolls: Vec<Value>,
     labels: Vec<(String, Value)>,
     vars: BTreeMap<String, Value>,
+    rng: ThreadRng,
 }
 
 impl Context {
@@ -17,6 +19,7 @@ impl Context {
             rolls: Vec::new(),
             labels: Vec::new(),
             vars: BTreeMap::new(),
+            rng: rand::thread_rng(),
         }
     }
 
@@ -30,6 +33,18 @@ impl Context {
 
     pub fn roll(&mut self, dr: Value) {
         self.rolls.push(dr);
+    }
+
+    pub fn get_var(&mut self, s: &str) -> Option<Value> {
+        self.vars.get(s).map(|v| v.clone())
+    }
+
+    pub fn add_label(&mut self, s: String, v: Value) {
+        self.labels.push((s, v))
+    }
+
+    pub fn rng(&mut self) -> &mut ThreadRng {
+        &mut self.rng
     }
 }
 

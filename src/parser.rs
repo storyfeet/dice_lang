@@ -1,5 +1,4 @@
-use crate::dice::Dice;
-use crate::instruction::Job;
+use crate::dice::Value;
 use crate::tokenizer::{Token, TokenRes, TokenType, Tokenizer};
 use err_tools::*;
 

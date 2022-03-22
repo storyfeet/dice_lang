@@ -1,19 +1,22 @@
 pub mod context;
 pub mod dice;
-pub mod instruction;
-pub mod parser;
-pub mod tokenizer;
-use dice::*;
-use instruction::*;
+pub mod expr;
+//pub mod instruction; //TODO remove
+//pub mod parser;
+//pub mod tokenizer;
+use expr::*;
 
 fn main() -> anyhow::Result<()> {
-    let j = Job::dice(Dice::D(6).n(3))
-        .push_ins(Instruction::Sum)
-        .push_ins(Instruction::Push)
-        .push_ins(Instruction::Append(Job::pop()));
-
+    let j = Expr {
+        v: Box::new(ExValue::Num(3)),
+        ops: vec![
+            Operation::D(ExValue::Num(6)),
+            Operation::Label(ExValue::Word("Fish".to_string())),
+            Operation::Sum,
+        ],
+    };
     let mut ct = context::Context::new();
-    let dr = j.run(&mut tr)?;
-    println!("{}\nResult = {}", tr, dr);
+    let dr = j.resolve(&mut ct)?;
+    println!("{}\nResult = {}", ct, dr);
     Ok(())
 }
