@@ -2,8 +2,8 @@ pub mod context;
 pub mod dice;
 pub mod expr;
 //pub mod instruction; //TODO remove
-//pub mod parser;
-//pub mod tokenizer;
+pub mod parser;
+pub mod tokenizer;
 use expr::*;
 
 fn main() -> anyhow::Result<()> {

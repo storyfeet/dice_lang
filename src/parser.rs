@@ -1,6 +1,14 @@
-use crate::dice::Value;
+use crate::expr::*;
 use crate::tokenizer::{Token, TokenRes, TokenType, Tokenizer};
 use err_tools::*;
+
+macro_rules! op1 {
+    ($x:ident,$s:ident) => {{
+        $s.peek = None;
+        let v = $s.value()?;
+        Ok(Operation::$x(v))
+    }};
+}
 
 pub struct Parser<'a> {
     t: Tokenizer<'a>,
@@ -46,55 +54,59 @@ impl<'a> Parser<'a> {
         return e_str("Consume token, required token did not match");
     }
 
-    pub fn job(&mut self) -> anyhow::Result<Job> {
-        let mut js = self.value()?;
-        loop {
-            // Try instructions and see what can be added
-            match self.peek_type() {
-                Some(TokenType::ParenC) => return Ok(js),
-                None => return Ok(js),
-                Some(TokenType::Add) => {
-                    self.peek = None,
-
-                }
-                _ => unimplemented!(),
-            }
+    pub fn expr(&mut self) -> anyhow::Result<Expr> {
+        let v = Box::new(self.value()?);
+        let mut ops = Vec::new();
+        while self.peek_type().is_some() {
+            ops.push(self.operation()?);
         }
+        Ok(Expr { v, ops })
     }
 
-    pub fn value(&mut self) -> anyhow::Result<Job> {
-        match self.peek_type() {
-            Some(TokenType::ParenO) => {
+    pub fn value(&mut self) -> anyhow::Result<ExValue> {
+        match self.peek_type().e_str("Expected Value found EOI")? {
+            TokenType::D => Ok(ExValue::Num(1)),
+            TokenType::ParenO => {
                 self.peek = None;
-                let res = self.job()?;
-                self.consume_token(TokenType::ParenO)
+                let res = self.expr()?;
+                self.consume_token(TokenType::ParenC)
                     .e_str("No Close Bracket after Job")?;
-                Ok(res)
+                Ok(ExValue::Ex(res))
             }
-            Some(TokenType::Number(n)) => {
-                self.peek = None;
-                if let Some(TokenType::D) = self.peek_type() {
-                    self.peek = None;
-                    let ndice = self.faces()?.n(n);
-                    Ok(Job::dice(ndice))
-                } else {
-                    Ok(Job::num(n))
-                }
-            }
-        }
-    }
-
-    pub fn faces(&mut self) -> anyhow::Result<Dice> {
-        match self.peek_type().e_str("Dice need faces")?{
             TokenType::Number(n) => {
                 self.peek = None;
-                Ok(Dice::D(n))
+                Ok(ExValue::Num(n))
             }
-            TokenType::BraceO => {
-                self.face_list()
+            TokenType::Word(w) => {
+                let w = w.to_string();
+                self.peek = None;
+                Ok(ExValue::Word(w))
+            }
+            TokenType::BraceO => self.list(),
+            _ => e_str("Expected Value, got something else"),
+        }
+    }
+
+    pub fn operation(&mut self) -> anyhow::Result<Operation> {
+        match self.peek_type().e_str("Expected Token found EOI")? {
+            TokenType::Add => op1!(Add, self),
+            _ => {
+                return e_str("Expected Operation, found something else");
             }
         }
     }
 
-    pub fn v_list
+    pub fn list(&mut self) -> anyhow::Result<ExValue> {
+        self.consume_token(TokenType::BraceO)?;
+        let mut res = Vec::new();
+        loop {
+            match self.peek_type().e_str("Unclosed List")? {
+                TokenType::BraceC => {
+                    self.peek = None;
+                    return Ok(ExValue::List(res));
+                }
+                _ => res.push(self.value()?),
+            }
+        }
+    }
 }
