@@ -1,3 +1,4 @@
+use err_tools::*;
 use rand::*;
 use std::fmt::{self, Display};
 
@@ -12,11 +13,37 @@ pub enum Value {
 impl Value {
     pub fn as_int(&self) -> anyhow::Result<i32> {
         match self {
-            Self::Word(_) => err_tools::e_str("Cannot use String as Number"),
+            Self::Word(_) => e_str("Cannot use String as Number"),
             Self::Num(n) => Ok(*n),
             Self::List(l) => l.iter().try_fold(0, |f, v| Ok(f + v.as_int()?)),
-            Self::Range(_, _) => err_tools::e_str("Cannot use Range as Number"),
+            Self::Range(_, _) => e_str("Cannot use Range as Number"),
         }
+    }
+
+    fn _most<F: Fn(i32, i32) -> i32>(&self, f: F) -> anyhow::Result<i32> {
+        match self {
+            Self::Word(_) => e_str("Words are not High or Low"),
+            Self::Num(n) => Ok(*n),
+            Self::Range(a, b) => Ok((*a).max(*b)),
+            Self::List(l) => {
+                let mut res = None;
+                for i in l {
+                    if let Self::Num(n) = i {
+                        match res {
+                            None => res = Some(*n),
+                            Some(p) => res = Some(f(p, *n)),
+                        }
+                    }
+                }
+                res.e_str("No Numbers in value")
+            }
+        }
+    }
+    pub fn highest(&self) -> anyhow::Result<Value> {
+        self._most(i32::max).map(Value::Num)
+    }
+    pub fn lowest(&self) -> anyhow::Result<Value> {
+        self._most(i32::min).map(Value::Num)
     }
 
     pub fn flatten(&self) -> anyhow::Result<Vec<Value>> {

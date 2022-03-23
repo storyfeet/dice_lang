@@ -6,6 +6,10 @@ pub type TokenRes<'a> = anyhow::Result<Option<Token<'a>>>;
 #[derive(Debug, PartialEq, Clone)]
 pub enum TokenType<'a> {
     D,
+    L,
+    H,
+    P,
+    F,
     Number(i32),
     Word(&'a str),
     ParenO,
@@ -16,14 +20,20 @@ pub enum TokenType<'a> {
     Add,
     Push,
     Pop,
+    Range,
+    Colon,
 }
 
 impl<'a> TokenType<'a> {
     pub fn from_word(s: &'a str) -> Self {
         match s {
-            "d" => TokenType::D,
+            "D" | "d" => TokenType::D,
             "push" => TokenType::Push,
             "pop" => TokenType::Pop,
+            "P" => TokenType::P,
+            "H" => TokenType::H,
+            "L" => TokenType::L,
+            "F" => TokenType::F,
             s => TokenType::Word(s),
         }
     }
@@ -35,6 +45,13 @@ pub struct Token<'a> {
     pub tt: TokenType<'a>,
     pub start: usize,
     pub end: usize,
+}
+
+pub fn print_tokens(s: &str) {
+    let mut t = Tokenizer::new(s);
+    while let Ok(Some(t)) = t.next() {
+        println!("T:{:?}", t);
+    }
 }
 
 pub struct Tokenizer<'a> {
@@ -120,9 +137,9 @@ impl<'a> Tokenizer<'a> {
             match self.peek_char() {
                 Some((_, c)) if c.is_alphabetic() => self.peek = None,
                 Some((i, _)) => {
-                    return self.make_token_wrap(TokenType::Word(&self.s[start..i]), false)
+                    return self.make_token_wrap(TokenType::from_word(&self.s[start..i]), false)
                 }
-                None => return self.make_token_wrap(TokenType::Word(&self.s[start..]), false),
+                None => return self.make_token_wrap(TokenType::from_word(&self.s[start..]), false),
             }
         }
     }
@@ -166,6 +183,16 @@ impl<'a> Tokenizer<'a> {
             Some((_, '[')) => self.make_token_wrap(TokenType::BraceO, true),
             Some((_, ']')) => self.make_token_wrap(TokenType::BraceC, true),
             Some((_, '+')) => self.make_token_wrap(TokenType::Add, true),
+            Some((_, '-')) => self.make_token_wrap(TokenType::Sub, true),
+            Some((_, ':')) => self.make_token_wrap(TokenType::Colon, true),
+            Some((_, '.')) => {
+                //todo, allow single dot variable path
+                self.peek = None;
+                match self.next_char() {
+                    Some((_, '.')) => self.make_token_wrap(TokenType::Range, false),
+                    _ => e_str("Expected second Dot"),
+                }
+            }
             Some((_, c)) if c.is_alphabetic() => self.unqoth(),
 
             Some(_) => e_str("Unexpected Character"),

@@ -10,6 +10,18 @@ macro_rules! op1 {
     }};
 }
 
+macro_rules! val0 {
+    ($x:ident,$s:ident) => {{
+        $s.peek = None;
+        Ok(ExValue::$x)
+    }};
+}
+
+pub fn parse_expr(s: &str) -> anyhow::Result<Expr> {
+    let mut p = Parser::new(s);
+    p.expr()
+}
+
 pub struct Parser<'a> {
     t: Tokenizer<'a>,
     peek: Option<Token<'a>>,
@@ -32,7 +44,10 @@ impl<'a> Parser<'a> {
 
     pub fn peek_token(&mut self) -> TokenRes<'a> {
         match self.next_token()? {
-            Some(t) => Ok(Some(t.clone())),
+            Some(t) => {
+                self.peek = Some(t.clone());
+                Ok(Some(t))
+            }
             None => Ok(None),
         }
     }
@@ -57,7 +72,10 @@ impl<'a> Parser<'a> {
     pub fn expr(&mut self) -> anyhow::Result<Expr> {
         let v = Box::new(self.value()?);
         let mut ops = Vec::new();
-        while self.peek_type().is_some() {
+        while let Some(t) = self.peek_type() {
+            if t == TokenType::ParenC {
+                break;
+            }
             ops.push(self.operation()?);
         }
         Ok(Expr { v, ops })
@@ -66,6 +84,7 @@ impl<'a> Parser<'a> {
     pub fn value(&mut self) -> anyhow::Result<ExValue> {
         match self.peek_type().e_str("Expected Value found EOI")? {
             TokenType::D => Ok(ExValue::Num(1)),
+            TokenType::Sub => Ok(ExValue::Num(0)),
             TokenType::ParenO => {
                 self.peek = None;
                 let res = self.expr()?;
@@ -82,6 +101,10 @@ impl<'a> Parser<'a> {
                 self.peek = None;
                 Ok(ExValue::Word(w))
             }
+            TokenType::L => val0!(L, self),
+            TokenType::H => val0!(H, self),
+            TokenType::P => val0!(P, self),
+            TokenType::F => val0!(Fudge, self),
             TokenType::BraceO => self.list(),
             _ => e_str("Expected Value, got something else"),
         }
@@ -90,9 +113,11 @@ impl<'a> Parser<'a> {
     pub fn operation(&mut self) -> anyhow::Result<Operation> {
         match self.peek_type().e_str("Expected Token found EOI")? {
             TokenType::Add => op1!(Add, self),
-            _ => {
-                return e_str("Expected Operation, found something else");
-            }
+            TokenType::Sub => op1!(Sub, self),
+            TokenType::D => op1!(D, self),
+            TokenType::Colon => op1!(Replace, self),
+            TokenType::Range => op1!(Range, self),
+            t => e_string(format!("Expected Operation, found {:?}", t)),
         }
     }
 

@@ -23,6 +23,10 @@ impl Context {
         }
     }
 
+    pub fn prev(&self) -> Option<Value> {
+        self.rolls.last().map(|c| c.clone())
+    }
+
     pub fn push(&mut self, dr: Value) {
         self.stack.push(dr);
     }

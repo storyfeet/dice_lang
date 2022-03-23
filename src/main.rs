@@ -4,19 +4,16 @@ pub mod expr;
 //pub mod instruction; //TODO remove
 pub mod parser;
 pub mod tokenizer;
-use expr::*;
+//use expr::*;
 
 fn main() -> anyhow::Result<()> {
-    let j = Expr {
-        v: Box::new(ExValue::Num(3)),
-        ops: vec![
-            Operation::D(ExValue::Num(6)),
-            Operation::Label(ExValue::Word("Fish".to_string())),
-            Operation::Sum,
-        ],
-    };
-    let mut ct = context::Context::new();
-    let dr = j.resolve(&mut ct)?;
-    println!("{}\nResult = {}", ct, dr);
+    for (i, a) in std::env::args().skip(1).enumerate() {
+        println!("Roll {} : {}\n", i, a);
+        let j = parser::parse_expr(&a)?;
+
+        let mut ct = context::Context::new();
+        let dr = j.resolve(&mut ct)?;
+        println!("{}\nResult = {}", ct, dr);
+    }
     Ok(())
 }

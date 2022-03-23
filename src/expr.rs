@@ -7,6 +7,10 @@ pub enum ExValue {
     Num(i32),
     Word(String),
     Var(String),
+    L,
+    H,
+    P,
+    Fudge,
     Pop,
     List(Vec<ExValue>),
     Ex(Expr),
@@ -19,6 +23,10 @@ impl ExValue {
             Self::Word(s) => Ok(Value::Word(s.clone())),
             Self::Var(v) => Ok(c.get_var(v).e_str("Var Does not Exist")?),
             Self::Pop => Ok(c.pop().e_str("Nothing to Pop")?),
+            Self::P => Ok(c.prev().e_str("No Previous Roll")?),
+            Self::H => c.prev().e_str("No Previous Roll")?.highest(),
+            Self::L => c.prev().e_str("No Previous Roll")?.lowest(),
+            Self::Fudge => Ok(Value::Range(-1, 2)),
             Self::List(l) => {
                 let mut res = Vec::new();
                 for i in l {
@@ -35,11 +43,13 @@ impl ExValue {
 #[derive(Clone, Debug)]
 pub enum Operation {
     Add(ExValue),
+    Sub(ExValue),
     Push,
     Label(ExValue),
     D(ExValue),
     Sum,
     Range(ExValue),
+    Replace(ExValue),
 }
 
 impl Operation {
@@ -48,6 +58,10 @@ impl Operation {
             Self::Add(b) => {
                 let b = b.resolve(c)?;
                 Ok(Value::Num(a.as_int()? + b.as_int()?))
+            }
+            Self::Sub(b) => {
+                let b = b.resolve(c)?;
+                Ok(Value::Num(a.as_int()? - b.as_int()?))
             }
             Self::Sum => Ok(Value::Num(a.as_int()?)),
             Self::Push => {
@@ -72,6 +86,7 @@ impl Operation {
                 let b = b.resolve(c)?.as_int()?;
                 Ok(Value::Range(a, b))
             }
+            Self::Replace(b) => b.resolve(c),
         }
     }
 }
