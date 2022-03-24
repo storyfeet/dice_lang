@@ -37,6 +37,28 @@ impl<'a> TokenType<'a> {
             s => TokenType::Word(s),
         }
     }
+
+    pub fn precedence(&self) -> u32 {
+        match self {
+            Self::L => 1,
+            Self::H => 1,
+            Self::P => 1,
+            Self::F => 1,
+            Self::Number(_) => 1,
+            Self::Word(_) => 1,
+            Self::Pop => 2,
+            Self::Push => 3,
+            Self::Add => 4,
+            Self::Sub => 5,
+            Self::Colon => 7,
+            Self::Range => 9,
+            Self::D => 10,
+            Self::ParenO => 11,
+            Self::ParenC => 11,
+            Self::BraceO => 11,
+            Self::BraceC => 11,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

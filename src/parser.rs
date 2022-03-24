@@ -2,24 +2,11 @@ use crate::expr::*;
 use crate::tokenizer::{Token, TokenRes, TokenType, Tokenizer};
 use err_tools::*;
 
-macro_rules! op1 {
-    ($x:ident,$s:ident) => {{
-        $s.peek = None;
-        let v = $s.value()?;
-        Ok(Operation::$x(v))
-    }};
-}
 
-macro_rules! val0 {
-    ($x:ident,$s:ident) => {{
-        $s.peek = None;
-        Ok(ExValue::$x)
-    }};
-}
 
 pub fn parse_expr(s: &str) -> anyhow::Result<Expr> {
     let mut p = Parser::new(s);
-    p.expr()
+    p.expr(0)
 }
 
 pub struct Parser<'a> {
@@ -69,10 +56,19 @@ impl<'a> Parser<'a> {
         return e_str("Consume token, required token did not match");
     }
 
-    pub fn expr(&mut self) -> anyhow::Result<Expr> {
-        let v = Box::new(self.value()?);
-        let mut ops = Vec::new();
+    pub fn expr(&mut self, prec: u32) -> anyhow::Result<Expr> {
+        let v = self.value()?;
+        match self.peek_type(){
+            None => {
+                return Ok(Expr::new(v,Operation::Value))
+            }
+            Some(t) if t.precedence < prec =>{
+                return Ok(Expr::new(v,Operation::Value))
+            }
+        }
+        
         while let Some(t) = self.peek_type() {
+            if t.precedence()
             if t == TokenType::ParenC {
                 break;
             }
@@ -83,14 +79,23 @@ impl<'a> Parser<'a> {
 
     pub fn value(&mut self) -> anyhow::Result<ExValue> {
         match self.peek_type().e_str("Expected Value found EOI")? {
-            TokenType::D => Ok(ExValue::Num(1)),
+            TokenType::D => {
+                self.peek = None;
+                let res = self.expr(11)?;
+                Ok(ExValue::D(Box::new(res)))
+            }
+            TokenType::Sub => {
+                self.peek = None;
+                let res = self.expr(5)?;
+                Ok(ExValue::Neg(Box::new(res)))
+            }
             TokenType::Sub => Ok(ExValue::Num(0)),
             TokenType::ParenO => {
                 self.peek = None;
-                let res = self.expr()?;
+                let res = self.expr(0)?;
                 self.consume_token(TokenType::ParenC)
                     .e_str("No Close Bracket after Job")?;
-                Ok(ExValue::Ex(res))
+                Ok(ExValue::Ex(Box::new(res)))
             }
             TokenType::Number(n) => {
                 self.peek = None;
@@ -110,7 +115,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn operation(&mut self) -> anyhow::Result<Operation> {
+    pub fn operation(&mut self, precedence: u32) -> anyhow::Result<Operation> {
         match self.peek_type().e_str("Expected Token found EOI")? {
             TokenType::Add => op1!(Add, self),
             TokenType::Sub => op1!(Sub, self),

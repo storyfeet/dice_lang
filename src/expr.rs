@@ -3,6 +3,7 @@ use crate::dice::Value;
 use err_tools::*;
 
 #[derive(Clone, Debug)]
+// Values that require no prior item
 pub enum ExValue {
     Num(i32),
     Word(String),
@@ -12,8 +13,10 @@ pub enum ExValue {
     P,
     Fudge,
     Pop,
-    List(Vec<ExValue>),
-    Ex(Expr),
+    List(Vec<Expr>),
+    Neg(Box<Expr>),
+    D(Box<Expr>),
+    Ex(Box<Expr>),
 }
 
 impl ExValue {
@@ -35,74 +38,83 @@ impl ExValue {
                 }
                 Ok(Value::List(res))
             }
-            Self::Ex(e) => e.resolve(c),
         }
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum Operation {
-    Add(ExValue),
-    Sub(ExValue),
+    Value,
+    Add,
+    Sub,
+    Neg,
     Push,
-    Label(ExValue),
-    D(ExValue),
+    Label,
+    D,
     Sum,
-    Range(ExValue),
-    Replace(ExValue),
+    Range,
+    Replace,
 }
 
 impl Operation {
-    pub fn resolve(&self, a: Value, c: &mut Context) -> anyhow::Result<Value> {
+    pub fn resolve(&self, ct: &mut Context) -> anyhow::Result<()> {
         match self {
-            Self::Add(b) => {
-                let b = b.resolve(c)?;
-                Ok(Value::Num(a.as_int()? + b.as_int()?))
+            Self::Add => {
+                let b = ct.try_pop()?;
+                let a = ct.try_pop()?;
+                ct.push(Value::Num(a.as_int()? + b.as_int()?));
             }
-            Self::Sub(b) => {
-                let b = b.resolve(c)?;
-                Ok(Value::Num(a.as_int()? - b.as_int()?))
+            Self::Neg => {
+                let a = ct.try_pop()?;
+                ct.push(Value::Num(-a.as_int()?));
             }
-            Self::Sum => Ok(Value::Num(a.as_int()?)),
-            Self::Push => {
-                c.push(a.clone());
-                Ok(a)
+            Self::Sub => {
+                let b = ct.try_pop()?;
+                let a = ct.try_pop()?;
+                ct.push(Value::Num(a.as_int()? - b.as_int()?));
             }
-            Self::Label(l) => {
-                let w = l.resolve(c)?.to_string();
-                c.add_label(w, a.clone());
-                Ok(a)
+            Self::Sum => {
+                let a = ct.try_pop()?;
+                ct.push(Value::Num(a.as_int()?));
             }
-            Self::D(e) => {
-                let n = a.as_int()?;
-                let e = e.resolve(c)?;
+            Self::Label => {
+                let a = ct.try_top()?;
+                let w = ct.try_pop()?.to_string();
+                ct.add_label(w, a);
+            }
+            Self::D => {
+                let d = ct.try_pop()?;
+                let n = ct.try_pop()?.as_int()?;
                 //todo flatten
-                let r = e.roll_n(n);
-                c.roll(r.clone());
-                Ok(r)
+                let r = d.roll_n(n);
+                ct.push_roll(r);
             }
-            Self::Range(b) => {
-                let a = a.as_int()?;
-                let b = b.resolve(c)?.as_int()?;
-                Ok(Value::Range(a, b))
+            Self::Range => {
+                let b = ct.try_pop()?.as_int()?;
+                let a = ct.try_pop()?.as_int()?;
+                ct.push(Value::Range(a, b));
             }
-            Self::Replace(b) => b.resolve(c),
         }
+        Ok(())
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct Expr {
-    pub v: Box<ExValue>,
-    pub ops: Vec<Operation>,
+    pub v: ExValue,
+    pub op: Box<Operation>,
 }
 
 impl Expr {
+    pub fn new(v: ExValue, op: Operation) -> Self {
+        Self {
+            v,
+            op: Box::new(op),
+        }
+    }
     pub fn resolve(&self, c: &mut Context) -> anyhow::Result<Value> {
         let mut res = self.v.resolve(c)?;
-        for o in &self.ops {
-            res = o.resolve(res, c)?;
-        }
+        self.op.resolve(res, c)?;
         Ok(res)
     }
 }

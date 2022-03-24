@@ -1,4 +1,5 @@
 use crate::dice::Value;
+use err_tools::*;
 use rand::rngs::ThreadRng;
 use std::collections::BTreeMap;
 use std::fmt::{self, Display};
@@ -35,7 +36,19 @@ impl Context {
         self.stack.pop()
     }
 
-    pub fn roll(&mut self, dr: Value) {
+    pub fn try_pop(&mut self) -> anyhow::Result<Value> {
+        self.stack.pop().e_str("Nothing on Stack")
+    }
+
+    pub fn try_top(&mut self) -> anyhow::Result<Value> {
+        self.stack
+            .last()
+            .e_str("Nothing on Stack")
+            .map(Value::clone)
+    }
+
+    pub fn push_roll(&mut self, dr: Value) {
+        self.stack.push(dr.clone());
         self.rolls.push(dr);
     }
 
