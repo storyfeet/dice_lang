@@ -10,6 +10,7 @@ fn main() -> anyhow::Result<()> {
     for (i, a) in std::env::args().skip(1).enumerate() {
         println!("Roll {} : {}\n", i, a);
         let j = parser::parse_expr(&a)?;
+        println!("   expr = {:?}\n\n", j.ops);
 
         let mut ct = context::Context::new();
         let dr = j.resolve(&mut ct)?;

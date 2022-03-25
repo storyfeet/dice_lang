@@ -16,6 +16,7 @@ pub enum TokenType<'a> {
     ParenC,
     BraceO,
     BraceC,
+    Dollar,
     Sub,
     Add,
     Push,
@@ -57,6 +58,7 @@ impl<'a> TokenType<'a> {
             Self::ParenC => 11,
             Self::BraceO => 11,
             Self::BraceC => 11,
+            Self::Dollar => 12,
         }
     }
 }
@@ -206,6 +208,7 @@ impl<'a> Tokenizer<'a> {
             Some((_, ']')) => self.make_token_wrap(TokenType::BraceC, true),
             Some((_, '+')) => self.make_token_wrap(TokenType::Add, true),
             Some((_, '-')) => self.make_token_wrap(TokenType::Sub, true),
+            Some((_, '$')) => self.make_token_wrap(TokenType::Dollar, true),
             Some((_, ':')) => self.make_token_wrap(TokenType::Colon, true),
             Some((_, '.')) => {
                 //todo, allow single dot variable path

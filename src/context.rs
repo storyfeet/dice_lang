@@ -67,6 +67,10 @@ impl Context {
         self.rolls.push(dr);
     }
 
+    pub fn last_roll(&self) -> Option<Value> {
+        self.rolls.last().map(Value::clone)
+    }
+
     pub fn get_var(&mut self, s: &str) -> Option<Value> {
         self.vars.get(s).map(|v| v.clone())
     }

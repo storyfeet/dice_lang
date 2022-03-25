@@ -1,5 +1,6 @@
 use crate::context::Context;
 use crate::dice::Value;
+use err_tools::*;
 
 #[derive(Clone, Debug)]
 pub enum Operation {
@@ -7,17 +8,14 @@ pub enum Operation {
     Word(String),
     List(i32), //Num elements
     Var,
-    Value,
     Add,
     Sub,
     Neg,
-    Push,
     Label,
     L,
     H,
     P,
     Fudge,
-    Pop,
     D,
     Sum,
     Range,
@@ -45,6 +43,26 @@ impl Operation {
                 let a = ct.try_pop()?;
                 ct.push(Value::Num(a.as_int()?));
             }
+            Self::L => {
+                ct.push(ct.last_roll().e_str("No last roll for L")?.lowest()?);
+            }
+            Self::H => {
+                ct.push(ct.last_roll().e_str("No last roll for H")?.highest()?);
+            }
+            Self::P => ct.push(ct.last_roll().e_str("No last roll for P")?),
+            Self::Fudge => {
+                ct.push(Value::List(vec![
+                    Value::Num(-1),
+                    Value::Num(0),
+                    Value::Num(1),
+                ]));
+            }
+            Self::Replace => {
+                let v = ct.try_pop()?;
+                ct.try_pop()?;
+                ct.push(v);
+            }
+
             Self::Label => {
                 let a = ct.try_top()?;
                 let w = ct.try_pop()?.to_string();
@@ -87,8 +105,8 @@ impl Expr {
         Self { ops: Vec::new() }
     }
     pub fn resolve(&self, ct: &mut Context) -> anyhow::Result<Value> {
-        for o in self.ops {
-            let mut res = o.resolve(ct)?;
+        for o in &self.ops {
+            o.resolve(ct)?;
         }
         ct.try_pop()
     }
