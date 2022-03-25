@@ -1,8 +1,9 @@
 use err_tools::*;
 use rand::*;
+use std::cmp::{Ordering, PartialOrd};
 use std::fmt::{self, Display};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Value {
     Num(i32),
     Word(String),
@@ -37,6 +38,16 @@ impl Value {
                 }
                 res.e_str("No Numbers in value")
             }
+        }
+    }
+
+    pub fn filter<F: Fn(&Value) -> bool>(&self, f: F) -> Value {
+        match self {
+            Value::List(l) => Value::List(l.iter().filter(|v| f(v)).map(Value::clone).collect()),
+            v => match f(v) {
+                true => v.clone(),
+                false => Value::List(Vec::new()),
+            },
         }
     }
     pub fn highest(&self) -> anyhow::Result<Value> {
@@ -81,10 +92,37 @@ impl Value {
             Self::Range(b, a) => Value::Num(r.gen_range(*a..*b)),
             Self::Word(s) => Value::Word(s.clone()),
             Self::List(v) => {
+                if v.len() == 0 {
+                    return Value::Num(0);
+                }
                 let n = r.gen_range(0..v.len());
                 v[n].clone()
             }
         }
+    }
+}
+
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> Ordering {
+        use Value::*;
+        match (self, other) {
+            (Num(a), Num(b)) => a.cmp(b),
+            (Word(a), Word(b)) => a.cmp(b),
+            (Range(al, ah), Range(bl, bh)) => (2 * ah - al).cmp(&(2 * bh - bl)),
+            (List(a), List(b)) => a.cmp(b),
+            (Num(_), _) => Ordering::Less,
+            (_, Num(_)) => Ordering::Greater,
+            (Word(_), _) => Ordering::Less,
+            (_, Word(_)) => Ordering::Greater,
+            (Range(_, _), _) => Ordering::Less,
+            (_, Range(_, _)) => Ordering::Greater,
+        }
+    }
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, b: &Self) -> Option<Ordering> {
+        Some(self.cmp(b))
     }
 }
 

@@ -18,6 +18,9 @@ pub enum Operation {
     Fudge,
     D,
     Sum,
+    Equal,
+    Less,
+    Greater,
     Range,
     Replace,
 }
@@ -62,7 +65,21 @@ impl Operation {
                 ct.try_pop()?;
                 ct.push(v);
             }
-
+            Self::Equal => {
+                let b = ct.try_pop()?;
+                let a = ct.try_pop()?;
+                ct.push(a.filter(|v| *v == b));
+            }
+            Self::Less => {
+                let b = ct.try_pop()?;
+                let a = ct.try_pop()?;
+                ct.push(a.filter(|v| *v < b));
+            }
+            Self::Greater => {
+                let b = ct.try_pop()?;
+                let a = ct.try_pop()?;
+                ct.push(a.filter(|v| *v > b));
+            }
             Self::Label => {
                 let a = ct.try_top()?;
                 let w = ct.try_pop()?.to_string();

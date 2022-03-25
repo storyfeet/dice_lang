@@ -12,6 +12,9 @@ pub enum TokenType<'a> {
     F,
     Number(i32),
     Word(&'a str),
+    Equal,
+    Greater,
+    Less,
     ParenO,
     ParenC,
     BraceO,
@@ -23,6 +26,7 @@ pub enum TokenType<'a> {
     Pop,
     Range,
     Colon,
+    Comma,
 }
 
 impl<'a> TokenType<'a> {
@@ -39,8 +43,14 @@ impl<'a> TokenType<'a> {
         }
     }
 
-    pub fn precedence(&self) -> u32 {
+    pub fn precedence(&self) -> i32 {
         match self {
+            Self::Comma => -1,
+            Self::ParenC => -1,
+            Self::BraceC => -1,
+            Self::Equal => 1,
+            Self::Greater => 1,
+            Self::Less => 1,
             Self::L => 1,
             Self::H => 1,
             Self::P => 1,
@@ -55,9 +65,7 @@ impl<'a> TokenType<'a> {
             Self::D => 9,
             Self::Range => 10,
             Self::ParenO => 11,
-            Self::ParenC => 11,
             Self::BraceO => 11,
-            Self::BraceC => 11,
             Self::Dollar => 12,
         }
     }
@@ -193,6 +201,13 @@ impl<'a> Tokenizer<'a> {
         }
     }
     pub fn next(&mut self) -> TokenRes<'a> {
+        let follow = |s: &mut Self, c: char, tt: TokenType<'a>| {
+            s.peek = None;
+            match s.next_char() {
+                Some((_, r)) if r == c => s.make_token_wrap(tt, false),
+                _ => e_str("Expected second Dot"),
+            }
+        };
         self.white_space();
         self.start = self.peek_index();
         match self.peek_char() {
@@ -210,14 +225,11 @@ impl<'a> Tokenizer<'a> {
             Some((_, '-')) => self.make_token_wrap(TokenType::Sub, true),
             Some((_, '$')) => self.make_token_wrap(TokenType::Dollar, true),
             Some((_, ':')) => self.make_token_wrap(TokenType::Colon, true),
-            Some((_, '.')) => {
-                //todo, allow single dot variable path
-                self.peek = None;
-                match self.next_char() {
-                    Some((_, '.')) => self.make_token_wrap(TokenType::Range, false),
-                    _ => e_str("Expected second Dot"),
-                }
-            }
+            Some((_, ',')) => self.make_token_wrap(TokenType::Comma, true),
+            Some((_, '.')) => follow(self, '.', TokenType::Range),
+            Some((_, '=')) => follow(self, '=', TokenType::Equal),
+            Some((_, '<')) => self.make_token_wrap(TokenType::Less, true),
+            Some((_, '>')) => self.make_token_wrap(TokenType::Greater, true),
             Some((_, c)) if c.is_alphabetic() => self.unqoth(),
 
             Some(_) => e_str("Unexpected Character"),

@@ -68,9 +68,12 @@ impl<'a> Parser<'a> {
         return e_str("Consume token, required token did not match");
     }
 
-    pub fn expr(&mut self, prec: u32) -> anyhow::Result<()> {
+    pub fn expr(&mut self, prec: i32) -> anyhow::Result<()> {
         self.unary()?;
         while let Some(t) = self.peek_type() {
+            if t == TokenType::BraceC {
+                return Ok(());
+            }
             let tp = t.precedence();
             if tp < prec {
                 return Ok(());
@@ -104,12 +107,17 @@ impl<'a> Parser<'a> {
             TokenType::BraceO => {
                 self.list()?;
             }
+            TokenType::ParenO => {
+                self.peek = None;
+                self.expr(0)?;
+                self.consume_token(TokenType::ParenC)?;
+            }
             t => return e_string(format!("Expected **Unary** operation found '{:?}'", t)),
         }
         Ok(())
     }
 
-    pub fn binary(&mut self, prec: u32) -> anyhow::Result<()> {
+    pub fn binary(&mut self, prec: i32) -> anyhow::Result<()> {
         let t = self.peek_type().e_str("Expected Token found EOI")?;
         let tp = t.precedence();
         if tp < prec {
@@ -124,6 +132,9 @@ impl<'a> Parser<'a> {
             TokenType::Add => bin_op!(self, Add, tp),
             TokenType::Sub => bin_op!(self, Sub, tp),
             TokenType::Range => bin_op!(self, Range, tp),
+            TokenType::Equal => bin_op!(self, Equal, tp),
+            TokenType::Less => bin_op!(self, Less, tp),
+            TokenType::Greater => bin_op!(self, Greater, tp),
             t => return e_string(format!("Expected **Binary** operation found '{:?}'", t)),
         }
         Ok(())
@@ -133,11 +144,17 @@ impl<'a> Parser<'a> {
         self.peek = None; // TODO check if non null peek is BraceO
         let mut n = 0;
         loop {
+            println!("List Loop");
             match self.peek_type().e_str("Unclosed List")? {
                 TokenType::BraceC => {
                     self.peek = None;
                     self.emit(Operation::List(n));
                     return Ok(());
+                }
+                TokenType::Comma => {
+                    self.peek = None;
+                    self.unary()?;
+                    n += 1;
                 }
                 _ => {
                     self.unary()?;
