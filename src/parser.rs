@@ -3,9 +3,9 @@ use crate::tokenizer::{Token, TokenRes, TokenType, Tokenizer};
 use err_tools::*;
 
 macro_rules! bin_op {
-    ($s:ident,$x:ident) => {{
+    ($s:ident,$x:ident,$p:ident) => {{
         $s.peek = None;
-        $s.unary()?;
+        $s.expr($p)?;
         $s.emit(Operation::$x);
     }};
 }
@@ -98,7 +98,7 @@ impl<'a> Parser<'a> {
             }
             TokenType::D => {
                 self.emit(Operation::Num(1));
-                self.unary()?;
+                self.expr(TokenType::D.precedence())?;
                 self.emit(Operation::D);
             }
             TokenType::BraceO => {
@@ -111,14 +111,19 @@ impl<'a> Parser<'a> {
 
     pub fn binary(&mut self, prec: u32) -> anyhow::Result<()> {
         let t = self.peek_type().e_str("Expected Token found EOI")?;
-        if t.precedence() < prec {
+        let tp = t.precedence();
+        if tp < prec {
             return Ok(());
         }
         match t {
-            TokenType::D => bin_op!(self, D),
-            TokenType::Add => bin_op!(self, Add),
-            TokenType::Sub => bin_op!(self, Sub),
-            TokenType::Range => bin_op!(self, Range),
+            TokenType::BraceC | TokenType::ParenC => {
+                println!("found ender : {:?}  ", t);
+                return Ok(());
+            }
+            TokenType::D => bin_op!(self, D, tp),
+            TokenType::Add => bin_op!(self, Add, tp),
+            TokenType::Sub => bin_op!(self, Sub, tp),
+            TokenType::Range => bin_op!(self, Range, tp),
             t => return e_string(format!("Expected **Binary** operation found '{:?}'", t)),
         }
         Ok(())
