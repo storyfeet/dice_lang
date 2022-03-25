@@ -82,6 +82,8 @@ impl<'a> Parser<'a> {
             }
             TokenType::P => self.emit(Operation::P),
             TokenType::F => self.emit(Operation::Fudge),
+            TokenType::L => self.emit(Operation::L),
+            TokenType::H => self.emit(Operation::H),
             TokenType::Dollar => {
                 self.unary()?;
                 self.emit(Operation::Var);
@@ -107,6 +109,11 @@ impl<'a> Parser<'a> {
                 self.peek = None;
                 self.unary()?;
                 self.emit(Operation::Add);
+            }
+            TokenType::Sub => {
+                self.peek = None;
+                self.unary()?;
+                self.emit(Operation::Sub);
             }
             t => return e_string(format!("Expected **Binary** operation found '{:?}'", t)),
         }
