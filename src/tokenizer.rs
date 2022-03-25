@@ -22,11 +22,14 @@ pub enum TokenType<'a> {
     Dollar,
     Sub,
     Add,
+    Append,
     Push,
     Pop,
     Range,
     Colon,
     Comma,
+    Count,
+    As,
 }
 
 impl<'a> TokenType<'a> {
@@ -39,6 +42,7 @@ impl<'a> TokenType<'a> {
             "H" => TokenType::H,
             "L" => TokenType::L,
             "F" => TokenType::F,
+            "as" => TokenType::As,
             s => TokenType::Word(s),
         }
     }
@@ -48,6 +52,9 @@ impl<'a> TokenType<'a> {
             Self::Comma => -1,
             Self::ParenC => -1,
             Self::BraceC => -1,
+            Self::Colon => 1,
+            Self::As => 1,
+            Self::Count => 1,
             Self::Equal => 1,
             Self::Greater => 1,
             Self::Less => 1,
@@ -60,8 +67,8 @@ impl<'a> TokenType<'a> {
             Self::Pop => 2,
             Self::Push => 3,
             Self::Add => 4,
+            Self::Append => 4,
             Self::Sub => 5,
-            Self::Colon => 7,
             Self::D => 9,
             Self::Range => 10,
             Self::ParenO => 11,
@@ -167,7 +174,7 @@ impl<'a> Tokenizer<'a> {
         let start = self.peek_index();
         loop {
             match self.peek_char() {
-                Some((_, c)) if c.is_alphabetic() => self.peek = None,
+                Some((_, c)) if c.is_alphabetic() || c == '_' => self.peek = None,
                 Some((i, _)) => {
                     return self.make_token_wrap(TokenType::from_word(&self.s[start..i]), false)
                 }
@@ -208,6 +215,13 @@ impl<'a> Tokenizer<'a> {
                 _ => e_str("Expected second Dot"),
             }
         };
+        let follow_def = |s: &mut Self, c: char, tt: TokenType<'a>, def: TokenType<'a>| {
+            s.peek = None;
+            match s.peek_char() {
+                Some((_, r)) if r == c => s.make_token_wrap(tt, true),
+                _ => s.make_token_wrap(def, false),
+            }
+        };
         self.white_space();
         self.start = self.peek_index();
         match self.peek_char() {
@@ -221,7 +235,7 @@ impl<'a> Tokenizer<'a> {
             Some((_, ')')) => self.make_token_wrap(TokenType::ParenC, true),
             Some((_, '[')) => self.make_token_wrap(TokenType::BraceO, true),
             Some((_, ']')) => self.make_token_wrap(TokenType::BraceC, true),
-            Some((_, '+')) => self.make_token_wrap(TokenType::Add, true),
+            Some((_, '+')) => follow_def(self, '+', TokenType::Append, TokenType::Add),
             Some((_, '-')) => self.make_token_wrap(TokenType::Sub, true),
             Some((_, '$')) => self.make_token_wrap(TokenType::Dollar, true),
             Some((_, ':')) => self.make_token_wrap(TokenType::Colon, true),
@@ -230,7 +244,8 @@ impl<'a> Tokenizer<'a> {
             Some((_, '=')) => follow(self, '=', TokenType::Equal),
             Some((_, '<')) => self.make_token_wrap(TokenType::Less, true),
             Some((_, '>')) => self.make_token_wrap(TokenType::Greater, true),
-            Some((_, c)) if c.is_alphabetic() => self.unqoth(),
+            Some((_, '!')) => self.make_token_wrap(TokenType::Count, true),
+            Some((_, c)) if c.is_alphabetic() || c == '_' => self.unqoth(),
 
             Some(_) => e_str("Unexpected Character"),
         }

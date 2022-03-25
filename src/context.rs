@@ -8,7 +8,6 @@ use std::fmt::{self, Display};
 pub struct Context {
     stack: Vec<Value>,
     rolls: Vec<Value>,
-    labels: Vec<(String, Value)>,
     vars: BTreeMap<String, Value>,
     rng: ThreadRng,
 }
@@ -18,7 +17,6 @@ impl Context {
         Self {
             stack: Vec::new(),
             rolls: Vec::new(),
-            labels: Vec::new(),
             vars: BTreeMap::new(),
             rng: rand::thread_rng(),
         }
@@ -33,9 +31,16 @@ impl Context {
     }
 
     /// Push Var Value onto run stack
-    pub fn push_var(&mut self, name: &str) -> anyhow::Result<()> {
+    pub fn var(&mut self, name: &str) -> anyhow::Result<()> {
         let v = self.vars.get(name).e_str("Could not get var")?.clone();
         self.stack.push(v);
+        Ok(())
+    }
+
+    //Clone Stack top onto Var list
+    pub fn push_var(&mut self, name: String) -> anyhow::Result<()> {
+        let v = self.try_top()?.clone();
+        self.vars.insert(name, v);
         Ok(())
     }
 
@@ -75,10 +80,6 @@ impl Context {
         self.vars.get(s).map(|v| v.clone())
     }
 
-    pub fn add_label(&mut self, s: String, v: Value) {
-        self.labels.push((s, v))
-    }
-
     pub fn rng(&mut self) -> &mut ThreadRng {
         &mut self.rng
     }
@@ -103,8 +104,10 @@ impl Display for Context {
         }
         write!(f, "\n")?;
 
-        for (l, r) in &self.labels {
-            writeln!(f, "{} {}", l, r)?;
+        for (k, v) in &self.vars {
+            if !k.starts_with("_") {
+                writeln!(f, "{} {}", k, v)?;
+            }
         }
 
         Ok(())

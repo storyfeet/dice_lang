@@ -21,6 +21,26 @@ impl Value {
         }
     }
 
+    pub fn count(&self) -> Value {
+        match self {
+            Self::List(l) => Value::Num(l.len() as i32),
+            _ => Value::Num(1),
+        }
+    }
+
+    pub fn as_list(self) -> Vec<Value> {
+        match self {
+            Value::List(l) => l,
+            v => vec![v],
+        }
+    }
+
+    pub fn append(self, b: Self) -> Self {
+        let mut l = self.as_list();
+        l.extend(b.as_list());
+        Value::List(l)
+    }
+
     fn _most<F: Fn(i32, i32) -> i32>(&self, f: F) -> anyhow::Result<i32> {
         match self {
             Self::Word(_) => e_str("Words are not High or Low"),

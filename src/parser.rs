@@ -75,7 +75,7 @@ impl<'a> Parser<'a> {
                 return Ok(());
             }
             let tp = t.precedence();
-            if tp < prec {
+            if tp <= prec {
                 return Ok(());
             }
             self.binary(tp)?;
@@ -128,6 +128,11 @@ impl<'a> Parser<'a> {
                 println!("found ender : {:?}  ", t);
                 return Ok(());
             }
+            TokenType::Count => {
+                self.peek = None;
+                self.emit(Operation::Count);
+            }
+            TokenType::Colon => bin_op!(self, Replace, tp),
             TokenType::D => bin_op!(self, D, tp),
             TokenType::Add => bin_op!(self, Add, tp),
             TokenType::Sub => bin_op!(self, Sub, tp),
@@ -135,6 +140,8 @@ impl<'a> Parser<'a> {
             TokenType::Equal => bin_op!(self, Equal, tp),
             TokenType::Less => bin_op!(self, Less, tp),
             TokenType::Greater => bin_op!(self, Greater, tp),
+            TokenType::As => bin_op!(self, As, tp),
+            TokenType::Append => bin_op!(self, Append, tp),
             t => return e_string(format!("Expected **Binary** operation found '{:?}'", t)),
         }
         Ok(())
