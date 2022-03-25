@@ -2,6 +2,14 @@ use crate::expr::*;
 use crate::tokenizer::{Token, TokenRes, TokenType, Tokenizer};
 use err_tools::*;
 
+macro_rules! bin_op {
+    ($s:ident,$x:ident) => {{
+        $s.peek = None;
+        $s.unary()?;
+        $s.emit(Operation::$x);
+    }};
+}
+
 pub fn parse_expr(s: &str) -> anyhow::Result<Expr> {
     let mut p = Parser::new(s);
     p.expr(0)?;
@@ -52,7 +60,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn consume_token(&mut self, tt: TokenType<'a>) -> anyhow::Result<()> {
-        let t = self.peek_type().e_str("Tried to consume Non Token")?;
+        let t = self.peek_type().e_str("Tried to consume EOI")?;
         if t == tt {
             self.peek = None;
             return Ok(());
@@ -93,43 +101,43 @@ impl<'a> Parser<'a> {
                 self.unary()?;
                 self.emit(Operation::D);
             }
+            TokenType::BraceO => {
+                self.list()?;
+            }
             t => return e_string(format!("Expected **Unary** operation found '{:?}'", t)),
         }
         Ok(())
     }
 
-    pub fn binary(&mut self, _prec: u32) -> anyhow::Result<()> {
-        match self.peek_type().e_str("Expected Token found EOI")? {
-            TokenType::D => {
-                self.peek = None;
-                self.unary()?;
-                self.emit(Operation::D);
-            }
-            TokenType::Add => {
-                self.peek = None;
-                self.unary()?;
-                self.emit(Operation::Add);
-            }
-            TokenType::Sub => {
-                self.peek = None;
-                self.unary()?;
-                self.emit(Operation::Sub);
-            }
+    pub fn binary(&mut self, prec: u32) -> anyhow::Result<()> {
+        let t = self.peek_type().e_str("Expected Token found EOI")?;
+        if t.precedence() < prec {
+            return Ok(());
+        }
+        match t {
+            TokenType::D => bin_op!(self, D),
+            TokenType::Add => bin_op!(self, Add),
+            TokenType::Sub => bin_op!(self, Sub),
+            TokenType::Range => bin_op!(self, Range),
             t => return e_string(format!("Expected **Binary** operation found '{:?}'", t)),
         }
         Ok(())
     }
 
     pub fn list(&mut self) -> anyhow::Result<()> {
-        self.consume_token(TokenType::BraceO)?;
+        self.peek = None; // TODO check if non null peek is BraceO
+        let mut n = 0;
         loop {
             match self.peek_type().e_str("Unclosed List")? {
                 TokenType::BraceC => {
                     self.peek = None;
-                    self.emit(Operation::List(0));
+                    self.emit(Operation::List(n));
                     return Ok(());
                 }
-                _ => self.unary()?,
+                _ => {
+                    self.unary()?;
+                    n += 1;
+                }
             }
         }
     }
