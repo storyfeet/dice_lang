@@ -32,6 +32,13 @@ impl Context {
         self.stack.push(dr);
     }
 
+    /// Push Var Value onto run stack
+    pub fn push_var(&mut self, name: &str) -> anyhow::Result<()> {
+        let v = self.vars.get(name).e_str("Could not get var")?.clone();
+        self.stack.push(v);
+        Ok(())
+    }
+
     pub fn pop(&mut self) -> Option<Value> {
         self.stack.pop()
     }
@@ -45,6 +52,14 @@ impl Context {
             .last()
             .e_str("Nothing on Stack")
             .map(Value::clone)
+    }
+
+    pub fn top_n(&mut self, n: usize) -> anyhow::Result<Vec<Value>> {
+        let l = self.stack.len();
+        if n > l {
+            return e_str("Cannot take that many elements");
+        }
+        Ok(self.stack.split_off(l - n))
     }
 
     pub fn push_roll(&mut self, dr: Value) {

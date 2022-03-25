@@ -12,6 +12,7 @@ pub fn parse_expr(s: &str) -> anyhow::Result<Expr> {
 pub struct Parser<'a> {
     t: Tokenizer<'a>,
     peek: Option<Token<'a>>,
+    target:Expr,
 }
 
 impl<'a> Parser<'a> {
@@ -19,7 +20,11 @@ impl<'a> Parser<'a> {
         Parser {
             t: Tokenizer::new(s),
             peek: None,
+            target:Expr::new(),
         }
+    }
+    pub fn emit(&mut self,op:Operation){
+        self.target.ops.push(op);
     }
 
     pub fn next_token(&mut self) -> TokenRes<'a> {
@@ -79,39 +84,7 @@ impl<'a> Parser<'a> {
 
     pub fn value(&mut self) -> anyhow::Result<ExValue> {
         match self.peek_type().e_str("Expected Value found EOI")? {
-            TokenType::D => {
-                self.peek = None;
-                let res = self.expr(11)?;
-                Ok(ExValue::D(Box::new(res)))
-            }
-            TokenType::Sub => {
-                self.peek = None;
-                let res = self.expr(5)?;
-                Ok(ExValue::Neg(Box::new(res)))
-            }
-            TokenType::Sub => Ok(ExValue::Num(0)),
-            TokenType::ParenO => {
-                self.peek = None;
-                let res = self.expr(0)?;
-                self.consume_token(TokenType::ParenC)
-                    .e_str("No Close Bracket after Job")?;
-                Ok(ExValue::Ex(Box::new(res)))
-            }
-            TokenType::Number(n) => {
-                self.peek = None;
-                Ok(ExValue::Num(n))
-            }
-            TokenType::Word(w) => {
-                let w = w.to_string();
-                self.peek = None;
-                Ok(ExValue::Word(w))
-            }
-            TokenType::L => val0!(L, self),
-            TokenType::H => val0!(H, self),
-            TokenType::P => val0!(P, self),
-            TokenType::F => val0!(Fudge, self),
-            TokenType::BraceO => self.list(),
-            _ => e_str("Expected Value, got something else"),
+            _=>Ok(
         }
     }
 
