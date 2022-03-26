@@ -35,6 +35,24 @@ impl Value {
         }
     }
 
+    pub fn lowest_n(self, n: usize) -> Value {
+        let mut v = self.as_list();
+        v.sort();
+        if n as usize <= v.len() {
+            v.drain(n..);
+        }
+        return Value::List(v);
+    }
+    pub fn highest_n(self, n: usize) -> Value {
+        let mut v = self.as_list();
+        v.sort();
+        if n as usize <= v.len() {
+            let n = v.len() - n;
+            v.drain(..n);
+        }
+        return Value::List(v);
+    }
+
     pub fn append(self, b: Self) -> Self {
         let mut l = self.as_list();
         l.extend(b.as_list());

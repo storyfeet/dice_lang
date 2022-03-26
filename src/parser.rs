@@ -142,6 +142,8 @@ impl<'a> Parser<'a> {
             TokenType::Greater => bin_op!(self, Greater, tp),
             TokenType::As => bin_op!(self, As, tp),
             TokenType::Append => bin_op!(self, Append, tp),
+            TokenType::LowestN => bin_op!(self, LowestN, tp),
+            TokenType::HighestN => bin_op!(self, HighestN, tp),
             t => return e_string(format!("Expected **Binary** operation found '{:?}'", t)),
         }
         Ok(())

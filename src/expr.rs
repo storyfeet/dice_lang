@@ -25,6 +25,8 @@ pub enum Operation {
     Replace,
     Count,
     As,
+    HighestN,
+    LowestN,
 }
 
 macro_rules! job2 {
@@ -44,6 +46,8 @@ impl Operation {
                 let a = ct.try_pop()?;
                 ct.push(Value::Num(-a.as_int()?));
             }
+            Self::LowestN => job2!(ct, a, b, a.lowest_n(b.as_int()? as usize)),
+            Self::HighestN => job2!(ct, a, b, a.highest_n(b.as_int()? as usize)),
             Self::Sub => job2!(ct, a, b, Value::Num(a.as_int()? - b.as_int()?)),
             Self::Sum => {
                 let a = ct.try_pop()?;

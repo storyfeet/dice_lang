@@ -30,6 +30,8 @@ pub enum TokenType<'a> {
     Comma,
     Count,
     As,
+    HighestN,
+    LowestN,
 }
 
 impl<'a> TokenType<'a> {
@@ -43,6 +45,11 @@ impl<'a> TokenType<'a> {
             "L" => TokenType::L,
             "F" => TokenType::F,
             "as" => TokenType::As,
+            "l" => TokenType::LowestN,
+            "k" => TokenType::LowestN,
+            "h" => TokenType::HighestN,
+            "K" => TokenType::HighestN,
+
             s => TokenType::Word(s),
         }
     }
@@ -64,6 +71,8 @@ impl<'a> TokenType<'a> {
             Self::F => 1,
             Self::Number(_) => 1,
             Self::Word(_) => 1,
+            Self::HighestN => 2,
+            Self::LowestN => 2,
             Self::Pop => 2,
             Self::Push => 3,
             Self::Add => 4,
@@ -224,30 +233,30 @@ impl<'a> Tokenizer<'a> {
         };
         self.white_space();
         self.start = self.peek_index();
-        match self.peek_char() {
-            None => Ok(None),
-            Some((i, c)) if c >= '0' && c <= '9' => {
-                self.peek = Some((i, c));
-                self.number()
-            }
-            Some((_, '\"')) => self.qoth(),
-            Some((_, '(')) => self.make_token_wrap(TokenType::ParenO, true),
-            Some((_, ')')) => self.make_token_wrap(TokenType::ParenC, true),
-            Some((_, '[')) => self.make_token_wrap(TokenType::BraceO, true),
-            Some((_, ']')) => self.make_token_wrap(TokenType::BraceC, true),
-            Some((_, '+')) => follow_def(self, '+', TokenType::Append, TokenType::Add),
-            Some((_, '-')) => self.make_token_wrap(TokenType::Sub, true),
-            Some((_, '$')) => self.make_token_wrap(TokenType::Dollar, true),
-            Some((_, ':')) => self.make_token_wrap(TokenType::Colon, true),
-            Some((_, ',')) => self.make_token_wrap(TokenType::Comma, true),
-            Some((_, '.')) => follow(self, '.', TokenType::Range),
-            Some((_, '=')) => follow(self, '=', TokenType::Equal),
-            Some((_, '<')) => self.make_token_wrap(TokenType::Less, true),
-            Some((_, '>')) => self.make_token_wrap(TokenType::Greater, true),
-            Some((_, '!')) => self.make_token_wrap(TokenType::Count, true),
-            Some((_, c)) if c.is_alphabetic() || c == '_' => self.unqoth(),
+        let pc = match self.peek_char() {
+            None => return Ok(None),
+            Some(v) => v,
+        };
+        match pc.1 {
+            c if c >= '0' && c <= '9' => self.number(),
+            '\"' => self.qoth(),
+            '(' => self.make_token_wrap(TokenType::ParenO, true),
+            ')' => self.make_token_wrap(TokenType::ParenC, true),
+            '[' => self.make_token_wrap(TokenType::BraceO, true),
+            ']' => self.make_token_wrap(TokenType::BraceC, true),
+            '+' => follow_def(self, '+', TokenType::Append, TokenType::Add),
+            '-' => self.make_token_wrap(TokenType::Sub, true),
+            '$' => self.make_token_wrap(TokenType::Dollar, true),
+            ':' => self.make_token_wrap(TokenType::Colon, true),
+            ',' => self.make_token_wrap(TokenType::Comma, true),
+            '.' => follow(self, '.', TokenType::Range),
+            '=' => follow(self, '=', TokenType::Equal),
+            '<' => self.make_token_wrap(TokenType::Less, true),
+            '>' => self.make_token_wrap(TokenType::Greater, true),
+            '!' => self.make_token_wrap(TokenType::Count, true),
+            c if c.is_alphabetic() || c == '_' => self.unqoth(),
 
-            Some(_) => e_str("Unexpected Character"),
+            _ => e_str("Unexpected Character"),
         }
     }
 }
